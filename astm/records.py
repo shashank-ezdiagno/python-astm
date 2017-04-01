@@ -24,6 +24,15 @@ from .mapping import (
 
 )
 
+class RecordsHelper:
+    @staticmethod
+    def records_to_json(records):
+        json_records = []
+        for record in records:
+            json_record = record.to_json()
+            json_records.append(json_record)
+        return json_records
+
 __all__ = ['HeaderRecord', 'PatientRecord', 'OrderRecord',
            'ResultRecord', 'CommentRecord', 'TerminatorRecord']
 

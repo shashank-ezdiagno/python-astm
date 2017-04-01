@@ -10,10 +10,12 @@
 import datetime
 import decimal
 import inspect
+import math
 import time
 import warnings
 from operator import itemgetter
 from itertools import islice
+import json
 try:
     from itertools import izip_longest
 except ImportError: # Python 3
@@ -108,7 +110,7 @@ class Mapping(_MappingProxy):
                 setattr(self, attrname, getattr(self, attrname))
             else:
                 setattr(self, attrname, attrval)
-        if values:
+        if values and None not in values:
             raise ValueError('Unexpected kwargs found: %r' % values)
 
     @classmethod
@@ -186,6 +188,12 @@ class Mapping(_MappingProxy):
                     yield value
         return list(values(self))
 
+    def to_json(self):
+        json_string = json.dumps(self, default=lambda o: o.__dict__['_data'])
+        data = json.loads(json_string)
+        data_without_none = {key:value for key,value in data.items() if value}
+        return data_without_none
+
 
 class Record(Mapping):
     """ASTM record mapping class."""
@@ -201,6 +209,87 @@ class TextField(Field):
         if not isinstance(value, basestring):
             raise TypeError('String value expected, got %r' % value)
         return super(TextField, self)._set_value(value)
+
+class FixedLengthTextField(Field):
+    def __init__(self, name=None, default=None, required=False, length=None):
+        super(FixedLengthTextField, self).__init__(name, default, required, length)
+        if not length:
+            raise ValueError('Length should be defined')
+
+    def _get_value(self, value):
+        return value.strip()
+
+    def _set_value(self, value):
+        if not isinstance(value, basestring):
+            raise TypeError('String value expected, got %r' % value)
+        if len(value) < self.length:
+            rem_length = self.length - len(value)
+            filler = ' ' * rem_length
+            value += filler
+        return super(FixedLengthTextField, self)._set_value(value)
+
+class FixedLengthIntegerField(Field):
+    def __init__(self, name=None, default=None, required=False, length=None):
+        super(FixedLengthIntegerField, self).__init__(name, default, required, length)
+        if not length:
+            raise ValueError('Length should be defined')
+
+    def _get_value(self, value):
+        return int(value)
+
+    def _set_value(self, value):
+        value = str(value)
+        if len(value) < self.length:
+            rem_length = self.length - len(value)
+            filler = ' ' * rem_length
+            value = filler + value
+        return super(FixedLengthIntegerField, self)._set_value(value)
+
+class AbsoluteFloatingField(Field):
+    def __init__(self, name=None, default=None, required=False, length=None, decimals=None):
+        super(AbsoluteFloatingField, self).__init__(name, default, required, length)
+        self.decimals = decimals
+        if not length:
+            raise ValueError('Length should be defined')
+
+    def _get_value(self, value):
+        return decimal.Decimal(value)
+
+    def _set_value(self, value):
+        if not isinstance(value, (int, long, float, decimal.Decimal)):
+            raise TypeError('Decimal value expected, got %r' % value)
+        if self.decimals:
+            value =  ("{0:.%sf}" % self.decimals).format(value)
+        if len(value) < self.length:
+            rem_length = self.length - len(value)
+            filler = ' ' * rem_length
+            if value[0] == '-':
+                value = '-' + filler + value[1:]
+            else:
+                value = filler + value
+        return super(AbsoluteFloatingField, self)._set_value(value)
+
+class ASCIIFloatingField(Field):
+    def __init__(self, name=None, default=None, required=False, length=None):
+        super(ASCIIFloatingField, self).__init__(name, default, required, length)
+        if not length:
+            raise ValueError('Length should be defined')
+
+    def _get_value(self, value):
+        return decimal.Decimal(value)
+
+    def _set_value(self, value):
+        if not isinstance(value, (int, long, float, decimal.Decimal)):
+            raise TypeError('Decimal value expected, got %r' % value)
+        value =  '%.2E' % decimal.Decimal(value)
+        if len(value) < self.length:
+            rem_length = self.length - len(value)
+            filler = ' ' * rem_length
+            if value[0] == '-':
+                value = '-' + filler + value[1:]
+            else:
+                value = filler + value
+        return super(ASCIIFloatingField, self)._set_value(value)
 
 
 class ConstantField(Field):
@@ -261,7 +350,10 @@ class DecimalField(Field):
 
 class DateField(Field):
     """Mapping field for storing date/time values."""
-    format = '%Y%m%d'
+    def __init__(self, name=None, default=None, required=False, length=None, format = "%d/%m/%Y"):
+        super(DateField, self).__init__(name, default, required, length)
+        self.format = format
+
     def _get_value(self, value):
         return datetime.datetime.strptime(value, self.format)
 
@@ -275,7 +367,10 @@ class DateField(Field):
 
 class TimeField(Field):
     """Mapping field for storing times."""
-    format = '%H%M%S'
+    def __init__(self, name=None, default=None, required=False, length=None, format = '%H%M%S'):
+        super(TimeField, self).__init__(name, default, required, length)
+        self.format = format
+
     def _get_value(self, value):
         if isinstance(value, basestring):
             try:

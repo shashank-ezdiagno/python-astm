@@ -10,7 +10,7 @@
 import logging
 from .asynclib import AsyncChat, call_later
 from .records import HeaderRecord, TerminatorRecord
-from .constants import STX,  ENQ, ACK, NAK, EOT, ENCODING
+from .constants import SOH, STX,  ENQ, ACK, NAK, EOT, ENCODING
 
 log = logging.getLogger(__name__)
 
@@ -41,6 +41,7 @@ class ASTMProtocol(AsyncChat):
 
     def found_terminator(self):
         while self.inbox:
+            print('inbox', self.inbox)
             data = self.inbox.popleft()
             if not data:
                 continue
@@ -57,7 +58,8 @@ class ASTMProtocol(AsyncChat):
             handler = self.on_nak
         elif data == EOT:
             handler = self.on_eot
-        elif data.startswith(STX): # this looks like a message
+        elif data.startswith(STX) or data.startswith(SOH): # this looks like a message
+            log.info('on_message protocol.py: %r', data)
             handler = self.on_message
         else:
             handler = lambda: self.default_handler(data)

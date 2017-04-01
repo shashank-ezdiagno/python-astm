@@ -11,6 +11,7 @@
 ENCODING = 'latin-1'
 
 #: Message start token.
+SOH = b'\x01'
 STX = b'\x02'
 #: Message end token.
 ETX = b'\x03'
@@ -28,6 +29,10 @@ LF  = b'\x0A'
 CR  = b'\x0D'
 #: CR + LF shortcut.
 CRLF = CR + LF
+# EOT + LF shortcut
+EOTLF = EOT + LF
+# ETX + LF shortcut
+ETXLF = ETX + LF
 
 #: Message records delimiter.
 RECORD_SEP    = b'\x0D' # \r #

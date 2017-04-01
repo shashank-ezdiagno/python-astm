@@ -210,6 +210,7 @@ def encode_message(seq, records, encoding):
 
 
 def encode_record(record, encoding):
+    from datetime import datetime
     """Encodes single ASTM record.
 
     :param record: ASTM record. Each :class:`str`-typed item counted as field
@@ -232,6 +233,8 @@ def encode_record(record, encoding):
             _append(field.encode(encoding))
         elif isinstance(field, Iterable):
             _append(encode_component(field, encoding))
+        elif isinstance(field, datetime):
+            _append(field.strftime('%Y%m%d%H%M%S').encode(encoding))     
         elif field is None:
             _append(b'')
         else:

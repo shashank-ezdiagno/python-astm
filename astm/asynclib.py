@@ -524,6 +524,7 @@ class Dispatcher(object):
                 self.handle_close()
                 return b''
             else:
+                print('buffer', data)
                 return data
         except socket.error as err:
             # winsock sometimes throws ENOTCONN
@@ -535,7 +536,7 @@ class Dispatcher(object):
 
     def close(self):
         """Close the socket.
-        
+
         All future operations on the socket object will fail.
         The remote end-point will receive no more data (after queued data is
         flushed). Sockets are automatically closed when they are
@@ -772,6 +773,7 @@ class AsyncChat(Dispatcher):
     def handle_read(self):
         try:
             data = self.recv(self.recv_buffer_size)
+            log.info('handle_read: %r', data)
         except socket.error as err:
             self.handle_error()
             return
@@ -780,7 +782,6 @@ class AsyncChat(Dispatcher):
             data = data.decode(self.encoding)
 
         self._input_buffer += data
-
         while self._input_buffer:
             terminator = self.terminator
             if not terminator:
@@ -797,13 +798,14 @@ class AsyncChat(Dispatcher):
 
     def _lookup_none_terminator(self, terminator):
         self.pull(self._input_buffer)
-        self._input_buffer = ''
+        self._input_buffer = b''
         return False
 
     def _lookup_int_terminator(self, terminator):
         if len(self._input_buffer) < terminator:
             self.pull(self._input_buffer)
-            self._input_buffer = ''
+            self._input_buffer = b''
+            self.found_terminator()
             return False
         else:
             self.pull(self._input_buffer[:terminator])
@@ -849,7 +851,7 @@ class AsyncChat(Dispatcher):
             else:
                 # no prefix, collect it all
                 self.pull(self._input_buffer)
-                self._input_buffer = ''
+                self._input_buffer = b''
                 return False
 
     def handle_write(self):
