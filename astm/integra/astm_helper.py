@@ -1,4 +1,5 @@
 from astm.integra.records import *
+import datetime
 
 class ASTMHelper:
     @staticmethod
@@ -12,7 +13,7 @@ class ASTMHelper:
     def create_order_records(booking_id, tests, sample_type, rack, pos, pri):
         record_id = OrderIDRecord()
         record_id.id = booking_id
-        record_id.date = '02/04/2017'
+        record_id.date = datetime.date.today()
         record_id.sample_type = sample_type
         record_info = OrderInfoRecord()
         record_info.rack = rack
