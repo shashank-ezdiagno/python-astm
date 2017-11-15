@@ -39,6 +39,7 @@ class RecordsStateMachine(object):
     def __init__(self, mapping):
         self.mapping = mapping
         self.state = None
+        print('initializing state machine')
 
     def __call__(self, state):
         if state is not None:
@@ -58,14 +59,13 @@ class RecordsStateMachine(object):
 
 DEFAULT_RECORDS_FLOW_MAP = {
     None: ['H'],
-    'H': ['C', 'M', 'P', 'L'],
-    'P': ['C', 'M', 'O', 'L'],
-    'O': ['C', 'M', 'P', 'O', 'R', 'L'],
-    'R': ['C', 'M', 'P', 'O', 'R', 'S', 'L'],
-    'S': ['C', 'M', 'P', 'O', 'R', 'S', 'L'],
+    'H': ['C', 'P', 'L', 'Q'],
+    'P': ['C', 'O', 'L'],
+    'O': ['C', 'P', 'O', 'R', 'L'],
+    'R': ['C', 'P', 'O', 'R', 'L'],
     'C': ['*'],
-    'M': ['*'],
-    'L': ['H']
+    'L': ['H'],
+    'Q': ['L']
 }
 
 

@@ -599,6 +599,8 @@ class RepeatedComponentField(Field):
         return self.Proxy(value, self.field)
 
     def _set_value(self, value):
+        if value and not isinstance(value[0], list):
+            value = [value]
         return [self.field._set_value(item) for item in value]
 
 

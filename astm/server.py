@@ -74,6 +74,7 @@ class BaseRecordsDispatcher(object):
 
     def __call__(self, message):
         seq, records, cs = decode_message(message, self.encoding)
+        log.info('Record: %r', message)
         for record in records:
             self.dispatch.get(record[0], self.on_unknown)(self.wrap(record))
 
@@ -161,7 +162,11 @@ class RequestHandler(ASTMProtocol):
 
     def on_eot(self):
         if self._is_transfer_state:
+            print('end of message')
             self._is_transfer_state = False
+            print('chunks', self._chunks)
+            if self._chunks:
+                self.dispatcher(join(self._chunks))
             self.terminator = 1
         else:
             raise InvalidState('Server is not ready to accept EOT message.')
@@ -182,6 +187,7 @@ class RequestHandler(ASTMProtocol):
         self.is_chunked_transfer = is_chunked_message(message)
         if self.is_chunked_transfer:
             self._chunks.append(message)
+            print('append chunks', self._chunks)
         elif self._chunks:
             self._chunks.append(message)
             self.dispatcher(join(self._chunks))
