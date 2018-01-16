@@ -41,7 +41,6 @@ class ASTMProtocol(AsyncChat):
 
     def found_terminator(self):
         while self.inbox:
-            print('inbox', self.inbox)
             data = self.inbox.popleft()
             if not data:
                 continue

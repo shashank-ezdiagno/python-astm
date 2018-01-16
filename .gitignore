@@ -2,3 +2,4 @@ astm.egg-info/
 astm/__pycache__/
 build/
 dist/
+*.pyc

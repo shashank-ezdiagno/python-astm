@@ -784,6 +784,7 @@ class AsyncChat(Dispatcher):
         self._input_buffer += data
         while self._input_buffer:
             terminator = self.terminator
+            print('terminator', terminator)
             if not terminator:
                 handler = self._lookup_none_terminator
             elif isinstance(terminator, (int, long)):
@@ -792,6 +793,7 @@ class AsyncChat(Dispatcher):
                 handler = self._lookup_str_terminator
             else:
                 handler = self._lookup_list_terminator
+            print('handler', handler)
             res = handler(self.terminator)
             if res is None:
                 break

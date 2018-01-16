@@ -10,8 +10,8 @@
 import logging
 import socket
 from .asynclib import loop
-from .codec import encode
-from .constants import ENQ, EOT
+from .codec import encode, is_chunked_message, join
+from .constants import ENQ, EOT, ACK, CRLF
 from .exceptions import NotAccepted
 from .mapping import Record
 from .protocol import ASTMProtocol
@@ -254,7 +254,7 @@ class Client(ASTMProtocol):
 
     def __init__(self, emitter, host='localhost', port=15200,
                  encoding=None, timeout=20, flow_map=DEFAULT_RECORDS_FLOW_MAP,
-                 chunk_size=None, bulk_mode=False):
+                 chunk_size=None, bulk_mode=False, dispatcher=None):
         super(Client, self).__init__(timeout=timeout)
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         self.connect((host, port))
@@ -265,6 +265,9 @@ class Client(ASTMProtocol):
             chunk_size=chunk_size,
             bulk_mode=bulk_mode
         )
+        self._is_transfer_state = False
+        self._chunks = []
+        self.dispatcher = dispatcher
         self.terminator = 1
 
     def handle_connect(self):
@@ -281,17 +284,28 @@ class Client(ASTMProtocol):
 
     def _close_session(self, close_connection=False):
         self.push(EOT)
-        if close_connection:
-            self.close_when_done()
+        #if close_connection:
+        #    self.close_when_done()
 
     def run(self, timeout=1.0, *args, **kwargs):
         """Enters into the :func:`polling loop <astm.asynclib.loop>` to let
         client send outgoing requests."""
         loop(timeout, *args, **kwargs)
 
+    # def on_enq(self):
+    #     """Raises :class:`NotAccepted` exception."""
+    #     raise NotAccepted('Client should not receive ENQ.')
+
+
     def on_enq(self):
-        """Raises :class:`NotAccepted` exception."""
-        raise NotAccepted('Client should not receive ENQ.')
+        print('ENQ aaya', self._is_transfer_state)
+        if not self._is_transfer_state:
+            self._is_transfer_state = True
+            self.push(ACK)
+            self.terminator = [CRLF,EOT]
+        else:
+            log.error('ENQ is not expected')
+            self.push(NAK)
 
     def on_ack(self):
         """Handles ACK response from server.
@@ -302,7 +316,7 @@ class Client(ASTMProtocol):
         try:
             message = self.emitter.send(True)
         except StopIteration:
-            self._close_session(True)
+            self._close_session(False)
         else:
             self.push(message)
             if message == EOT:
@@ -331,11 +345,39 @@ class Client(ASTMProtocol):
 
     def on_eot(self):
         """Raises :class:`NotAccepted` exception."""
-        raise NotAccepted('Client should not receive EOT.')
+        #raise NotAccepted('Client should not receive EOT.')
+        self.close_when_done()
+
+    # def on_message(self):
+    #     """Raises :class:`NotAccepted` exception."""
+    #     raise NotAccepted('Client should not receive ASTM message.')
 
     def on_message(self):
-        """Raises :class:`NotAccepted` exception."""
-        raise NotAccepted('Client should not receive ASTM message.')
+        if not self._is_transfer_state:
+            self.discard_input_buffers()
+            return NAK
+        else:
+            try:
+                self.handle_message(self._last_recv_data)
+                return ACK
+            except Exception:
+                log.exception('Error occurred on message handling.')
+                return NAK
+
+    def handle_message(self, message):
+        self.is_chunked_transfer = is_chunked_message(message)
+        if self.is_chunked_transfer:
+            self._chunks.append(message)
+        elif self._chunks:
+            self._chunks.append(message)
+            disp = self.dispatcher()
+            disp.client_handle(join(self._chunks))
+            self._chunks = []
+        else:
+            disp = self.dispatcher()
+            disp.client_handle(message)
+            self._chunks = []
+
 
     def on_timeout(self):
         """Sends final EOT message and closes connection after his receiving."""

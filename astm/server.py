@@ -84,6 +84,12 @@ class BaseRecordsDispatcher(object):
             return self.wrappers[rtype](*record)
         return record
 
+    def client_handle(self, message):
+        seq, records, cs = decode_message(message, self.encoding)
+        for record in records:
+            self.dispatch.get(record[0], self.on_unknown)(self.wrap(record))
+
+
     def _default_handler(self, record):
         log.warn('Record remains unprocessed: %s', record)
 
@@ -162,9 +168,7 @@ class RequestHandler(ASTMProtocol):
 
     def on_eot(self):
         if self._is_transfer_state:
-            print('end of message')
             self._is_transfer_state = False
-            print('chunks', self._chunks)
             if self._chunks:
                 self.dispatcher(join(self._chunks))
             self.terminator = 1
